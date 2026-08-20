@@ -1,34 +1,76 @@
+# ═══════════════════════════════════════════════════════════
+# PS-02 Matkayena — Project .gitignore
+# ═══════════════════════════════════════════════════════════
+
+# ─── Environment & Secrets ─────────────────────────────────
 .env
-.env.example
-.idea
-.ipynb_checkpoints
-.mypy_cache
-.vscode
-__pycache__
-.pytest_cache
-htmlcov
-dist
-site
-site_zensical_src
+.env.*
+!.env.example
+
+# ─── Python ────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+.eggs/
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+env3.*
+
+# Python tools
+.mypy_cache/
+.pytest_cache/
 .coverage*
 coverage.xml
-.netlify
-test.db
-log.txt
+htmlcov/
+.ruff_cache/
+.tox/
 Pipfile.lock
-env3.*
-env
-docs_build
-site_build
-venv
-docs.zip
-archive.zip
 
-# vim temporary files
+# ─── Database ──────────────────────────────────────────────
+*.db
+*.sqlite3
+*.sqlite
+
+# ─── Node / Frontend ──────────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# ─── Build & Dist ─────────────────────────────────────────
+dist/
+build/
+*.egg-info/
+
+# ─── IDE & Editor ─────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
 *~
 .*.sw?
-.cache
 
-# macOS
+# ─── OS ───────────────────────────────────────────────────
 .DS_Store
+Thumbs.db
+Desktop.ini
+
+# ─── Logs ─────────────────────────────────────────────────
+*.log
+log.txt
+
+# ─── Misc ─────────────────────────────────────────────────
+.cache/
+.netlify/
+.ipynb_checkpoints/
 .codspeed
+*.zip
+test.db
+test_crm.db
