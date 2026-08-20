@@ -36,7 +36,10 @@ class UserContext(BaseModel):
         return any(r in self.roles for r in roles)
 
 
-security_bearer = HTTPBearer(auto_error=False)
+security_bearer = HTTPBearer(
+    auto_error=False,
+    description="JWT Bearer Token obtained from POST /api/v1/auth/generate-token (e.g. 'Bearer eyJhbGci...')"
+)
 
 
 def create_access_token(
@@ -46,8 +49,10 @@ def create_access_token(
     org_unit_id: Optional[str] = None,
     expires_delta: Optional[timedelta] = None
 ) -> str:
-    """Generate a signed JWT token."""
-    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
+    """Generates a signed JWT access token for user authentication."""
+    expire = datetime.now(timezone.utc) + (
+        expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
     payload = {
         "sub": user_id,
         "email": email,
@@ -55,25 +60,31 @@ def create_access_token(
         "org_unit_id": org_unit_id,
         "exp": expire,
         "iat": datetime.now(timezone.utc),
+        "iss": "ps02-crm-auth-service"
     }
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
-def create_service_token(service_name: str) -> str:
-    """Generates an internal signed service token."""
-    expire = datetime.now(timezone.utc) + timedelta(days=365)
+def create_service_token(
+    service_name: str,
+    roles: Optional[List[str]] = None,
+    expires_delta: Optional[timedelta] = None
+) -> str:
+    """Generates an internal signed service token for inter-service RPC."""
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=60))
     payload = {
         "sub": service_name,
-        "roles": [RoleEnum.SYSTEM_SERVICE.value],
+        "roles": roles or [RoleEnum.SYSTEM_SERVICE.value],
         "is_service": True,
         "exp": expire,
         "iat": datetime.now(timezone.utc),
+        "iss": "ps02-service-mesh"
     }
     return jwt.encode(payload, settings.INTERNAL_SERVICE_SECRET, algorithm=settings.JWT_ALGORITHM)
 
 
 def verify_token(token: str) -> UserContext:
-    """Verifies a JWT or internal service token."""
+    """Decodes and validates a JWT token against user or service secret."""
     # First try user secret
     try:
         payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
@@ -103,7 +114,13 @@ def verify_token(token: str) -> UserContext:
 async def get_current_user(
     request: Request,
     auth: Optional[HTTPAuthorizationCredentials] = Depends(security_bearer),
-    service_token_header: Optional[str] = Header(None, alias="X-Service-Token")
+    service_token_header: Optional[str] = Header(
+        None,
+        alias="X-Service-Token",
+        title="Internal Service Secret / HMAC Token",
+        description="Optional internal microservice authentication token (e.g. ps02-internal-service-hmac-token-2026). Leave blank if authenticating with Bearer JWT token in Authorization header.",
+        examples=["ps02-internal-service-hmac-token-2026"]
+    )
 ) -> UserContext:
     """Dependency to extract and validate authenticated user or service."""
     # 1. Check direct service token header

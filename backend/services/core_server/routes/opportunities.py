@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, Query, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from backend.services.shared.auth import get_current_user, UserContext, RoleEnum
 from backend.services.shared.config import settings
@@ -17,10 +17,25 @@ event_client = ServiceClient("event_intelligence_server", settings.EVENT_INTELLI
 
 
 class EvaluateOpportunityRequest(BaseModel):
-    customer_id: str
+    customer_id: str = Field(
+        ...,
+        description="Unique customer ID to evaluate for commercial cross-sell, upsell, and reactivation",
+        examples=["cust_101"]
+    )
 
 
-@router.post("/evaluate", status_code=status.HTTP_200_OK)
+@router.post(
+    "/evaluate",
+    status_code=status.HTTP_200_OK,
+    summary="Evaluate Customer for Opportunities",
+    description="Directly invokes Opportunity Agent to detect cross-sell, upsell, and portfolio gaps."
+)
+@router.post(
+    "/evaluate-customer",
+    status_code=status.HTTP_200_OK,
+    summary="Evaluate Customer for Opportunities (Descriptive Alias)",
+    description="Directly invokes Opportunity Agent to detect cross-sell, upsell, and portfolio gaps."
+)
 async def evaluate_customer_opportunities(
     req: EvaluateOpportunityRequest,
     request: Request,
@@ -39,15 +54,25 @@ async def evaluate_customer_opportunities(
     )
 
 
-@router.get("")
+@router.get(
+    "",
+    summary="List Detected Commercial Opportunities",
+    description="Lists opportunities filtered by RM, customer, or status with deterministic scores."
+)
+@router.get(
+    "/list-opportunities",
+    summary="List Detected Commercial Opportunities (Descriptive Alias)",
+    description="Lists opportunities filtered by RM, customer, or status with deterministic scores."
+)
 def list_opportunities(
-    rm_id: Optional[str] = None,
-    customer_id: Optional[str] = None,
-    status: Optional[str] = None,
-    limit: int = Query(50, ge=1, le=200),
+    rm_id: Optional[str] = Query(None, description="Filter by Relationship Manager ID (e.g. 'rm_priya_01')"),
+    customer_id: Optional[str] = Query(None, description="Filter by Customer ID (e.g. 'cust_101')"),
+    status: Optional[str] = Query(None, description="Filter by status: DETECTED, ASSIGNED, CONTACTED, CONVERTED"),
+    limit: int = Query(50, ge=1, le=200, description="Max records to return"),
     db: Session = Depends(get_db),
     user: UserContext = Depends(get_current_user)
 ):
+
     """Lists commercial opportunities. Enforces RBAC permissions."""
     if not user.has_any_role([RoleEnum.MANAGER.value, RoleEnum.ADMIN.value]) and rm_id and rm_id != user.user_id:
         raise AuthorizationError("Access denied: You cannot view opportunities belonging to another RM")

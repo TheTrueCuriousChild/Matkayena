@@ -10,12 +10,26 @@ router = APIRouter(prefix="/api/v1/events", tags=["Events Gateway"])
 event_client = ServiceClient("event_intelligence_server", settings.EVENT_INTELLIGENCE_SERVER_URL)
 
 
-@router.post("", response_model=EventProcessingResult, status_code=status.HTTP_200_OK)
+@router.post(
+    "",
+    response_model=EventProcessingResult,
+    status_code=status.HTTP_200_OK,
+    summary="Submit Commercial / Transaction / Activity Event",
+    description="Primary gateway to ingest events (e.g. PAYIN_RECEIVED, LEAD_CREATED, CUSTOMER_ACTIVITY). Routes to intelligence agents."
+)
+@router.post(
+    "/submit-event",
+    response_model=EventProcessingResult,
+    status_code=status.HTTP_200_OK,
+    summary="Submit Commercial Event (Descriptive Alias)",
+    description="Primary gateway to ingest events (e.g. PAYIN_RECEIVED, LEAD_CREATED, CUSTOMER_ACTIVITY). Routes to intelligence agents."
+)
 async def submit_event(
     req: EventSubmissionRequest,
     request: Request,
     user: UserContext = Depends(get_current_user)
 ):
+
     """External entrypoint for commercial, transaction, and CRM events.
 
     Delegates to Server 2 (Event & Intelligence Server).

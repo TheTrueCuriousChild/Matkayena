@@ -43,15 +43,52 @@ class EventEnvelope(BaseModel):
 
 
 class EventSubmissionRequest(BaseModel):
-    event_type: EventTypeEnum
-    entity_type: str
-    entity_id: str
-    actor_id: Optional[str] = None
-    source: Optional[str] = "api"
-    payload: Dict[str, Any] = Field(default_factory=dict)
-    correlation_id: Optional[str] = None
-    causation_id: Optional[str] = None
-    idempotency_key: Optional[str] = None
+    event_type: EventTypeEnum = Field(
+        ...,
+        description="Type of event triggering the intelligence loop",
+        examples=["PAYIN_RECEIVED", "LEAD_CREATED", "CUSTOMER_ACTIVITY"]
+    )
+    entity_type: str = Field(
+        ...,
+        description="Target entity type",
+        examples=["CUSTOMER", "LEAD", "TRANSACTION", "RM"]
+    )
+    entity_id: str = Field(
+        ...,
+        description="Unique identifier of the customer, lead, or transaction",
+        examples=["cust_101", "lead_501", "tx_901"]
+    )
+    actor_id: Optional[str] = Field(
+        default=None,
+        description="User ID or system entity creating the event",
+        examples=["rm_priya_01", "system_gateway"]
+    )
+    source: Optional[str] = Field(
+        default="api",
+        description="Originating system or channel",
+        examples=["mobile_app", "web_portal", "core_banking", "api"]
+    )
+    payload: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Event data payload (e.g. deposit amount, customer holdings context, lead details)",
+        examples=[{"amount": 500000.0, "customer_id": "cust_101", "currency": "INR"}]
+    )
+    correlation_id: Optional[str] = Field(
+        default=None,
+        description="Tracing correlation ID shared across the full event lifecycle",
+        examples=["corr_workflow_1001"]
+    )
+    causation_id: Optional[str] = Field(
+        default=None,
+        description="ID of the parent event or decision that caused this event",
+        examples=["evt_prev_9002"]
+    )
+    idempotency_key: Optional[str] = Field(
+        default=None,
+        description="Unique key ensuring duplicate requests produce exactly one business outcome",
+        examples=["idemp_payin_cust101_tx9901"]
+    )
+
 
 
 class EventProcessingResult(BaseModel):

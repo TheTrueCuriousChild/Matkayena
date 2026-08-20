@@ -55,20 +55,20 @@ class Settings(BaseSettings):
     )
 
     def get_effective_db_url(self) -> str:
-        """Returns the PostgreSQL / Supabase connection URL or falls back to local SQLite."""
-        if self.DATABASE_URL:
-            # Handle postgres:// vs postgresql://
-            url = self.DATABASE_URL
-            if url.startswith("postgres://"):
-                url = url.replace("postgres://", "postgresql://", 1)
-            return url
-        if self.SUPABASE_DB_URL:
-            url = self.SUPABASE_DB_URL
-            if url.startswith("postgres://"):
-                url = url.replace("postgres://", "postgresql://", 1)
-            return url
+        """Returns the cleaned PostgreSQL / Supabase connection URL or falls back to local SQLite."""
+        raw_url = self.DATABASE_URL or self.SUPABASE_DB_URL
+        if raw_url:
+            cleaned = raw_url.strip().strip('"').strip("'")
+            # Replace postgres:// with postgresql+psycopg2:// or postgresql://
+            if cleaned.startswith("postgres://"):
+                cleaned = cleaned.replace("postgres://", "postgresql+psycopg2://", 1)
+            elif cleaned.startswith("postgresql://"):
+                cleaned = cleaned.replace("postgresql://", "postgresql+psycopg2://", 1)
+            return cleaned
+
         # SQLite fallback for local test/dev
         return "sqlite:///./crm_operational.db"
+
 
 
 settings = Settings()

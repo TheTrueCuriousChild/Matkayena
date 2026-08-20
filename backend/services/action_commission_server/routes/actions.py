@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Path, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from backend.services.action_commission_server.actions.lifecycle_manager import ActionLifecycleManager, ActionStatus
@@ -24,40 +24,127 @@ event_client = ServiceClient("event_intelligence_server", settings.EVENT_INTELLI
 
 
 class CreateActionRequest(BaseModel):
-    customer_id: str
-    assigned_rm_id: str
-    title: str
-    description: Optional[str] = None
-    action_type: str = "CALL_CUSTOMER"
-    priority: str = "MEDIUM"
-    opportunity_id: Optional[str] = None
-    lead_id: Optional[str] = None
-    due_date: Optional[datetime] = None
-    source_decision_id: Optional[str] = None
-    correlation_id: Optional[str] = None
+    customer_id: str = Field(
+        ...,
+        description="Target customer identifier",
+        examples=["cust_101"]
+    )
+    assigned_rm_id: str = Field(
+        ...,
+        description="Relationship Manager user ID responsible for this action",
+        examples=["rm_priya_01"]
+    )
+    title: str = Field(
+        ...,
+        description="Clear, actionable task headline",
+        examples=["Follow-up: Cross-sell Term Life Insurance"]
+    )
+    description: Optional[str] = Field(
+        default=None,
+        description="Detailed context, talking points, and customer signals",
+        examples=["Customer has ₹25L in Mutual Funds. Present ₹50L term insurance for asset protection."]
+    )
+    action_type: str = Field(
+        default="CALL_CUSTOMER",
+        description="Action format: CALL_CUSTOMER, SCHEDULE_MEETING, SEND_PROPOSAL, REVIEW_PORTFOLIO, OFFER_PRODUCT",
+        examples=["CALL_CUSTOMER", "OFFER_PRODUCT"]
+    )
+    priority: str = Field(
+        default="MEDIUM",
+        description="Task priority level: LOW, MEDIUM, HIGH, CRITICAL",
+        examples=["HIGH"]
+    )
+    opportunity_id: Optional[str] = Field(
+        default=None,
+        description="Associated opportunity ID detected by Opportunity Agent",
+        examples=["opp_101"]
+    )
+    lead_id: Optional[str] = Field(
+        default=None,
+        description="Associated lead ID if applicable",
+        examples=["lead_501"]
+    )
+    due_date: Optional[datetime] = Field(
+        default=None,
+        description="Task SLA deadline timestamp",
+        examples=["2026-08-25T18:00:00Z"]
+    )
+    source_decision_id: Optional[str] = Field(
+        default=None,
+        description="ID of the intelligence decision that generated this action"
+    )
+    correlation_id: Optional[str] = Field(
+        default=None,
+        description="End-to-end tracing correlation ID",
+        examples=["corr_workflow_1001"]
+    )
 
 
 class StatusTransitionRequest(BaseModel):
-    new_status: str
-    reason: Optional[str] = None
+    new_status: str = Field(
+        ...,
+        description="Target lifecycle state: PROPOSED, VALIDATED, ASSIGNED, IN_PROGRESS, COMPLETED, SNOOZED, REASSIGNED, FAILED, EXPIRED, REJECTED",
+        examples=["IN_PROGRESS"]
+    )
+    reason: Optional[str] = Field(
+        default=None,
+        description="Reason for status transition",
+        examples=["RM contacted customer; follow-up meeting scheduled."]
+    )
 
 
 class SnoozeActionRequest(BaseModel):
-    snooze_until: Optional[datetime] = None
-    reason: str = "Snoozed by RM"
+    snooze_until: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp until which the action is deferred",
+        examples=["2026-08-28T09:00:00Z"]
+    )
+    reason: str = Field(
+        default="Snoozed by RM",
+        description="Reason for snoozing",
+        examples=["Customer requested follow-up after salary credit on 1st."]
+    )
 
 
 class ReassignActionRequest(BaseModel):
-    new_rm_id: str
-    reason: Optional[str] = "Reassigned by manager"
+    new_rm_id: str = Field(
+        ...,
+        description="New Relationship Manager user ID",
+        examples=["rm_rohan_02"]
+    )
+    reason: Optional[str] = Field(
+        default="Reassigned by manager",
+        description="Manager justification for reassignment",
+        examples=["Reassigned to senior wealth advisor for Ultra-HNI portfolio."]
+    )
 
 
 class CompleteActionRequest(BaseModel):
-    outcome_type: str  # CONVERTED, INTERESTED_FOLLOWUP, REJECTED, NOT_REACHABLE
-    notes: Optional[str] = None
-    converted_product_id: Optional[str] = None
-    converted_value: Optional[float] = None
-    commission_eligible: bool = True
+    outcome_type: str = Field(
+        ...,
+        description="Conversion outcome: CONVERTED, INTERESTED_FOLLOWUP, REJECTED, NOT_REACHABLE",
+        examples=["CONVERTED"]
+    )
+    notes: Optional[str] = Field(
+        default=None,
+        description="Interaction summary or conversion notes",
+        examples=["Customer accepted term life policy recommendation and completed KYC."]
+    )
+    converted_product_id: Optional[str] = Field(
+        default=None,
+        description="Product ID converted (e.g. 'prod_ins_1')",
+        examples=["prod_ins_1"]
+    )
+    converted_value: Optional[float] = Field(
+        default=None,
+        description="Deal size or investment amount converted in INR",
+        examples=[500000.0]
+    )
+    commission_eligible: bool = Field(
+        default=True,
+        description="Flag indicating whether this deal qualifies for RM commission calculation"
+    )
+
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -153,9 +240,13 @@ def list_actions(
     return query.order_by(Action.created_at.desc()).limit(limit).all()
 
 
-@router.get("/{action_id}")
+@router.get(
+    "/{action_id}",
+    summary="Get Action Task Details & History",
+    description="Retrieves full details, outcome, and audit history for an action."
+)
 def get_action_details(
-    action_id: str,
+    action_id: str = Path(..., description="Unique Action Task identifier", examples=["act_101"]),
     db: Session = Depends(get_db),
     user: UserContext = Depends(get_current_user)
 ):
@@ -177,10 +268,14 @@ def get_action_details(
     }
 
 
-@router.post("/{action_id}/status")
+@router.post(
+    "/{action_id}/status",
+    summary="Transition Action Lifecycle State",
+    description="Transitions an action status (e.g. to IN_PROGRESS, REJECTED, etc.)."
+)
 def transition_status(
-    action_id: str,
-    req: StatusTransitionRequest,
+    action_id: str = Path(..., description="Unique Action Task identifier", examples=["act_101"]),
+    req: StatusTransitionRequest = None,
     db: Session = Depends(get_db),
     user: UserContext = Depends(get_current_user)
 ):
@@ -202,10 +297,14 @@ def transition_status(
     return updated
 
 
-@router.post("/{action_id}/snooze")
+@router.post(
+    "/{action_id}/snooze",
+    summary="Snooze Action Task",
+    description="Snoozes an action with reason and optional reminder time."
+)
 def snooze_action(
-    action_id: str,
-    req: SnoozeActionRequest,
+    action_id: str = Path(..., description="Unique Action Task identifier to snooze", examples=["act_101"]),
+    req: SnoozeActionRequest = None,
     db: Session = Depends(get_db),
     user: UserContext = Depends(get_current_user)
 ):
@@ -230,10 +329,14 @@ def snooze_action(
     return updated
 
 
-@router.post("/{action_id}/reassign")
+@router.post(
+    "/{action_id}/reassign",
+    summary="Reassign Action Task",
+    description="Reassigns an action to another RM. Requires Manager or Admin authorization."
+)
 def reassign_action(
-    action_id: str,
-    req: ReassignActionRequest,
+    action_id: str = Path(..., description="Unique Action Task identifier to reassign", examples=["act_101"]),
+    req: ReassignActionRequest = None,
     db: Session = Depends(get_db),
     user: UserContext = Depends(get_current_user)
 ):
@@ -251,13 +354,18 @@ def reassign_action(
     return updated
 
 
-@router.post("/{action_id}/complete")
+@router.post(
+    "/{action_id}/complete",
+    summary="Complete Action & Run Deterministic Commission Engine",
+    description="Completes an action, records outcome, and runs deterministic commission engine on conversion."
+)
 async def complete_action(
-    action_id: str,
-    req: CompleteActionRequest,
+    action_id: str = Path(..., description="Unique Action Task identifier to complete", examples=["act_101"]),
+    req: CompleteActionRequest = None,
     db: Session = Depends(get_db),
     user: UserContext = Depends(get_current_user)
 ):
+
     """Completes an action, records outcome, and runs deterministic commission engine on conversion."""
     action = ActionRepository.get_by_id(db, action_id)
     if not action:
