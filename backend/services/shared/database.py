@@ -48,7 +48,8 @@ def get_db() -> Generator[Session, None, None]:
 def init_db():
     """Initializes schema tables and seeds baseline products & sample data if empty."""
     try:
-        from backend.services.shared.models import Product, Role, Customer, CustomerProduct
+        import uuid
+        from backend.services.shared.models import Product, Role, Customer, CustomerProduct, Profile
 
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables verified/initialized successfully in Supabase/PostgreSQL.")
@@ -56,41 +57,64 @@ def init_db():
         # Auto-seed baseline data if empty
         db = SessionLocal()
         try:
+            prod_ins_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, "prod_ins_1"))
+            prod_mf_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, "prod_mf_1"))
+            prod_eq_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, "prod_eq_1"))
+            cust_101_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, "cust_101"))
+            rm_priya_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, "rm_priya_01"))
+
             if not db.query(Product).first():
                 products = [
-                    Product(id="prod_ins_1", code="TERM_LIFE", name="Term Life Insurance", category="INSURANCE", base_commission_rate=0.05),
-                    Product(id="prod_mf_1", code="BLUECHIP_MF", name="Bluechip Equity MF", category="MUTUAL_FUND", base_commission_rate=0.015),
-                    Product(id="prod_eq_1", code="EQUITY_PMS", name="Equity PMS", category="EQUITY", base_commission_rate=0.010),
+                    Product(id=prod_ins_id, code="TERM_LIFE", name="Term Life Insurance", category="INSURANCE", description="Comprehensive term protection policy"),
+                    Product(id=prod_mf_id, code="BLUECHIP_MF", name="Bluechip Equity MF", category="MUTUAL_FUND", description="Diversified large cap mutual fund"),
+                    Product(id=prod_eq_id, code="EQUITY_PMS", name="Equity PMS", category="EQUITY", description="High-alpha portfolio management service"),
                 ]
                 db.add_all(products)
                 db.commit()
                 logger.info("Auto-seeded baseline products (Insurance, Mutual Funds, PMS).")
 
-            if not db.query(Customer).filter(Customer.id == "cust_101").first():
+            if not db.query(Profile).filter(Profile.id == rm_priya_id).first():
+                sample_rm = Profile(
+                    id=rm_priya_id,
+                    employee_code="EMP_RM_01",
+                    full_name="Priya Sharma",
+                    email="priya@crm.com",
+                    is_active=True
+                )
+                db.add(sample_rm)
+                db.commit()
+                logger.info("Auto-seeded sample RM Profile (Priya Sharma).")
+
+            if not db.query(Customer).filter(Customer.customer_code == "CUST_101").first():
                 sample_cust = Customer(
-                    id="cust_101",
+                    id=cust_101_id,
                     customer_code="CUST_101",
-                    first_name="Vikram",
-                    last_name="Malhotra",
+                    full_name="Vikram Malhotra",
+                    email="vikram.malhotra@crm.com",
+                    phone="+919876543210",
                     segment="ULTRA_HNI",
-                    relationship_value=2500000.0,
-                    primary_rm_id="rm_priya_01",
-                    status="ACTIVE"
+                    potential_value=2500000.0,
+                    rm_id=rm_priya_id,
+                    lifecycle_status="ACTIVE"
                 )
                 db.add(sample_cust)
                 db.commit()
 
                 # Add initial MF holding for cross-sell detection
                 holding = CustomerProduct(
-                    customer_id="cust_101",
-                    product_id="prod_mf_1",
-                    holding_value=2500000.0
+                    id=str(uuid.uuid4()),
+                    customer_id=cust_101_id,
+                    product_id=prod_mf_id,
+                    status="ACTIVE",
+                    relationship_value=2500000.0
                 )
                 db.add(holding)
                 db.commit()
-                logger.info("Auto-seeded sample customer cust_101 with Mutual Fund holding.")
+                logger.info("Auto-seeded sample customer CUST_101 with Mutual Fund holding.")
+
         finally:
             db.close()
     except Exception as e:
         logger.warning(f"Database initialization note: {e}")
+
 

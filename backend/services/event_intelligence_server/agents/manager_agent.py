@@ -68,8 +68,9 @@ class ManagerAgent:
         alerts: List[ManagerAlert] = []
 
         # 1. Fetch RM snapshots
-        query = db.query(RMPerformanceSnapshot).filter(RMPerformanceSnapshot.period == period)
-        snapshots: List[RMPerformanceSnapshot] = query.all()
+        all_snapshots: List[RMPerformanceSnapshot] = db.query(RMPerformanceSnapshot).all()
+        snapshots = [sn for sn in all_snapshots if sn.period == period or getattr(sn, "_period", "") == period]
+
 
         for sn in snapshots:
             rm_profile = db.query(Profile).filter(Profile.id == sn.rm_id).first()

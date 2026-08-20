@@ -78,24 +78,102 @@ ps02-internal-service-hmac-token-2026
 ---
 
 ### 🏛️ SERVER 1: Core / API Server (Port 8000)
-**Role:** Public gateway, user authentication, server-side RBAC, customer 360 aggregation, and request orchestration.
+**Role:** Public gateway, user authentication & registration, server-side RBAC, customer 360 aggregation, and request orchestration.
 
-#### 1. `POST /api/v1/auth/generate-token`
-* **Purpose:** Issues a signed JWT access token.
+#### 1. `POST /api/v1/auth/register` (or `/api/v1/auth/register-user`)
+* **Purpose:** Registers a new RM, Manager, or Admin user profile into the database (`Profile` table) and returns an immediate signed JWT token.
 * **Request Body:**
 ```json
 {
   "user_id": "rm_priya_01",
-  "email": "priya@matkayena.com",
+  "employee_code": "EMP-8821",
+  "full_name": "Priya Sharma",
+  "email": "priya.sharma@matkayena.com",
+  "phone": "+91-9876543210",
   "roles": ["RM"],
+  "manager_id": "mgr_vikram_01",
   "org_unit_id": "branch_mumbai_01"
 }
 ```
 * **Roles Available:** `"RM"`, `"TEAM_LEAD"`, `"MANAGER"`, `"REGIONAL_MANAGER"`, `"ADMIN"`
+* **Output:**
+```json
+{
+  "user_id": "rm_priya_01",
+  "full_name": "Priya Sharma",
+  "email": "priya.sharma@matkayena.com",
+  "roles": ["RM"],
+  "manager_id": "mgr_vikram_01",
+  "org_unit_id": "branch_mumbai_01",
+  "access_token": "eyJhbGciOi...",
+  "token_type": "bearer",
+  "message": "User profile registered and JWT access token issued successfully."
+}
+```
 
 ---
 
-#### 2. `POST /api/v1/events/submit-event`
+#### 2. `POST /api/v1/auth/login` (or `/api/v1/auth/login-user`)
+* **Purpose:** Authenticates user by email, retrieves their profile from the database, and issues a signed JWT access token.
+* **Request Body:**
+```json
+{
+  "email": "priya.sharma@matkayena.com",
+  "password": "Password123!",
+  "roles": ["RM"]
+}
+```
+* **Output:**
+```json
+{
+  "user_id": "rm_priya_01",
+  "full_name": "Priya Sharma",
+  "email": "priya.sharma@matkayena.com",
+  "roles": ["RM"],
+  "manager_id": "mgr_vikram_01",
+  "org_unit_id": "branch_mumbai_01",
+  "access_token": "eyJhbGciOi...",
+  "token_type": "bearer",
+  "message": "Login successful. Use this access_token in 'Authorize' button or 'Authorization: Bearer <token>' header."
+}
+```
+
+---
+
+#### 3. `GET /api/v1/auth/me` (or `/api/v1/auth/current-user`)
+* **Purpose:** Decodes the active JWT Bearer token and returns the current user profile, assigned roles, and branch context.
+* **Header:** `Authorization: Bearer <access_token>`
+* **Output:**
+```json
+{
+  "user_id": "rm_priya_01",
+  "email": "priya.sharma@matkayena.com",
+  "roles": ["RM"],
+  "full_name": "Priya Sharma",
+  "manager_id": "mgr_vikram_01",
+  "org_unit_id": "branch_mumbai_01",
+  "is_active": true
+}
+```
+
+---
+
+#### 4. `POST /api/v1/auth/token` (or `/api/v1/auth/generate-token`)
+* **Purpose:** Issues a custom signed JWT access token for any user ID and role combination.
+* **Request Body:**
+```json
+{
+  "user_id": "rm_priya_01",
+  "email": "priya.sharma@matkayena.com",
+  "roles": ["RM"],
+  "org_unit_id": "branch_mumbai_01"
+}
+```
+
+---
+
+#### 5. `POST /api/v1/events/submit-event`
+
 * **Purpose:** Public entrypoint to ingest banking, payment, and CRM events.
 * **Request Body (Payin Deposit Example):**
 ```json
@@ -394,35 +472,199 @@ ps02-internal-service-hmac-token-2026
 
 ---
 
-## 🧪 4. Complete End-to-End Closed-Loop Test Flow
+## 🧪 4. Complete Functionality Testing Guide (Recipes & Parameters)
 
-Execute these steps in sequence on **Server 1 Swagger UI (`http://127.0.0.1:8000/docs`)**:
+You can test all system capabilities using **Swagger UI**, **cURL**, or **PowerShell**.
 
+---
+
+### 1️⃣ Functionality 1: User Registration & Profile Creation
+* **Endpoint**: `POST http://127.0.0.1:8000/api/v1/auth/register`
+* **Swagger UI**: Server 1 (`:8000`) -> `Authentication` -> `POST /api/v1/auth/register`
+* **Parameters / Request Body**:
+```json
+{
+  "user_id": "rm_priya_01",
+  "employee_code": "EMP-8821",
+  "full_name": "Priya Sharma",
+  "email": "priya.sharma@matkayena.com",
+  "phone": "+91-9876543210",
+  "roles": ["RM"],
+  "manager_id": "mgr_vikram_01",
+  "org_unit_id": "branch_mumbai_01"
+}
 ```
-Step 1: POST /api/v1/auth/generate-token (Authorize in Swagger)
-   │
-Step 2: GET  /api/v1/customers/360-view/cust_101 (Inspect portfolio)
-   │
-Step 3: POST /api/v1/events/submit-event (Deposit ₹5,00,000 -> Triggers Opportunity Agent)
-   │
-Step 4: GET  /api/v1/opportunities/list-opportunities (View scored cross-sell & explainability)
-   │
-Step 5: POST /api/v1/actions/{action_id}/complete-conversion (Convert deal -> Deterministic Commission)
-   │
-Step 6: GET  /api/v1/performance/evaluate-rm/rm_priya_01 (View updated quota pacing & drivers)
-   │
-Step 7: GET  /api/v1/manager/alerts/list-alerts (View manager intelligence alerts)
-   │
-Step 8: GET  /api/v1/audit/verify-chain/validate-ledger (Verify cryptographic hash-chain continuity)
+* **PowerShell**:
+```powershell
+$body = @{
+    user_id = "rm_priya_01"
+    full_name = "Priya Sharma"
+    email = "priya.sharma@matkayena.com"
+    roles = @("RM")
+} | ConvertTo-Json
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v1/auth/register" -Method Post -Body $body -ContentType "application/json"
+```
+
+---
+
+### 2️⃣ Functionality 2: User Login & Session Profile Inspection
+* **Login Endpoint**: `POST http://127.0.0.1:8000/api/v1/auth/login`
+* **Request Body**:
+```json
+{
+  "email": "priya.sharma@matkayena.com",
+  "password": "Password123!",
+  "roles": ["RM"]
+}
+```
+* **Verify Current User**: `GET http://127.0.0.1:8000/api/v1/auth/me`
+* **Header**: `Authorization: Bearer <access_token_from_login>`
+* **Output**:
+```json
+{
+  "user_id": "rm_priya_01",
+  "email": "priya.sharma@matkayena.com",
+  "roles": ["RM"],
+  "full_name": "Priya Sharma",
+  "manager_id": "mgr_vikram_01",
+  "is_active": true
+}
+```
+
+---
+
+### 3️⃣ Functionality 3: Role-Based Token Generation & RBAC Security
+* **Endpoint**: `POST http://127.0.0.1:8000/api/v1/auth/generate-token`
+* **Parameters / Request Body (Manager Role)**:
+```json
+{
+  "user_id": "mgr_vikram_01",
+  "email": "vikram.seth@matkayena.com",
+  "roles": ["MANAGER"],
+  "org_unit_id": "branch_mumbai_01"
+}
+```
+
+* **Testing RBAC Isolation**:
+  - Request with `RM` token attempting `GET /api/v1/manager/alerts` -> `403 Forbidden` (Only Managers/Admins allowed).
+  - Request with `MANAGER` token -> `200 OK` (Permitted).
+
+---
+
+### 3️⃣ Functionality 3: Customer 360 & Holdings Inspection
+* **Endpoint**: `GET http://127.0.0.1:8000/api/v1/customers/360-view/cust_101`
+* **Header**: `X-Service-Token: ps02-internal-service-hmac-token-2026` or `Authorization: Bearer <TOKEN>`
+* **Path Parameter**: `customer_id = cust_101`
+* **Output**: Aggregates customer demographic profile, current product holdings (Mutual Funds, Deposits), transaction history, and active leads.
+
+---
+
+### 4️⃣ Functionality 4: Event Ingestion & Idempotency Deduplication
+* **Endpoint**: `POST http://127.0.0.1:8000/api/v1/events/submit-event` (or direct to `:8001/api/v1/events/ingest-event`)
+* **Header**: `X-Service-Token: ps02-internal-service-hmac-token-2026`
+* **Request Body**:
+```json
+{
+  "event_type": "PAYIN_RECEIVED",
+  "entity_type": "CUSTOMER",
+  "entity_id": "cust_101",
+  "payload": {
+    "amount": 500000.0,
+    "customer_id": "cust_101"
+  },
+  "idempotency_key": "idemp_unique_tx_9999",
+  "correlation_id": "corr_test_001"
+}
+```
+* **Testing Idempotency**:
+  1. Send first request -> `200 OK`, `success: true`, `decisions_made: 1`, `actions_created: 1`.
+  2. Send second request with identical `idempotency_key` -> `200 OK`, `details.status: "IDEMPOTENT_SUPPRESSION"`. Deduplicates without double-processing.
+
+---
+
+### 5️⃣ Functionality 5: Agent #1 — Opportunity Agent Evaluation
+* **Endpoint**: `POST http://127.0.0.1:8001/api/v1/intelligence/evaluate-customer-opportunity`
+* **Request Body**:
+```json
+{
+  "customer_id": "cust_101",
+  "correlation_id": "corr_opp_manual_01"
+}
+```
+* **Output**: Returns scored opportunities with explainability signals (`what`, `why`, `rule_evaluated`, `signals`).
+
+---
+
+### 6️⃣ Functionality 6: Action Lifecycle State Machine
+* **List Tasks**: `GET http://127.0.0.1:8000/api/v1/actions/list-actions?rm_id=rm_priya_01&status=ASSIGNED`
+* **Snooze Task**: `POST http://127.0.0.1:8002/api/v1/actions/{action_id}/snooze`
+```json
+{
+  "snooze_until": "2026-08-28T09:00:00Z",
+  "reason": "Client requested follow-up next Monday."
+}
+```
+* **Reassign Task**: `POST http://127.0.0.1:8002/api/v1/actions/{action_id}/reassign`
+```json
+{
+  "new_rm_id": "rm_rohan_02",
+  "reason": "Client assigned to Senior Wealth RM."
+}
+```
+
+---
+
+### 7️⃣ Functionality 7: Pure Deterministic Commission Engine (0% LLM)
+* **Endpoint**: `POST http://127.0.0.1:8002/api/v1/commission/calculate`
+* **Request Body**:
+```json
+{
+  "rm_id": "rm_priya_01",
+  "action_id": "act_test_001",
+  "product_category": "INSURANCE",
+  "converted_value": 500000.0,
+  "customer_segment": "HNI",
+  "conversion_speed_hours": 12.0
+}
+```
+* **Mathematical Formula**:
+  $$\text{Commission} = 500,000 \times 0.05 \text{ (Base)} \times 1.25 \text{ (HNI)} \times 1.05 \text{ (Volume)} = \mathbf{₹32,812.50}$$
+
+---
+
+### 8️⃣ Functionality 8: Agent #2 — RM Performance Agent Evaluation
+* **Endpoint**: `GET http://127.0.0.1:8000/api/v1/performance/evaluate-rm/rm_priya_01?period=2026-Q1`
+* **Output**: Evaluates run-rate pacing, conversion rates, and SLA breach penalty scores. Diagnoses status (`HEALTHY`, `ON_TRACK`, `AT_RISK`, `CRITICAL`, or `EXCEPTIONAL`) with traceable primary drivers.
+
+---
+
+### 9️⃣ Functionality 9: Agent #3 — Manager Intelligence & Escalations
+* **Endpoint**: `GET http://127.0.0.1:8000/api/v1/manager/alerts/list-alerts?period=2026-Q1`
+* **Header**: `Authorization: Bearer <MANAGER_JWT_TOKEN>`
+* **Output**: Aggregates team shortfalls, critical SLA breaches, and high-priority customer escalations with built-in 4-hour anti-spam cooldown throttling.
+
+---
+
+### 🔟 Functionality 🔟: Cryptographic SHA-256 Hash Chain & Blockchain Isolation
+* **View Audit Trail**: `GET http://127.0.0.1:8000/api/v1/audit/records/list-records?limit=10`
+* **Verify Hash Chain Integrity**: `GET http://127.0.0.1:8000/api/v1/audit/verify-chain/validate-ledger`
+* **Output**:
+```json
+{
+  "is_valid": true,
+  "total_records": 12,
+  "status": "VERIFIED_UNBROKEN"
+}
 ```
 
 ---
 
 ## ⚙️ 5. Automated Test Suite
 
-Run the full automated test suite containing 20 tests covering all microservers, agents, RBAC security, and idempotency:
+Run the full automated test suite containing 20 tests covering all 4 microservers, the 3 deterministic agents, RBAC security, and idempotency:
 
 ```powershell
 python -m pytest tests/ -v
 ```
 *(All 20 tests pass with a 100% success rate).*
+

@@ -38,7 +38,10 @@ class EventRepository:
 
     @staticmethod
     def list_by_entity(db: Session, entity_type: str, entity_id: str, limit: int = 50) -> List[BusinessEvent]:
-        return db.query(BusinessEvent).filter(
-            BusinessEvent.entity_type == entity_type,
-            BusinessEvent.entity_id == entity_id
-        ).order_by(BusinessEvent.received_at.desc()).limit(limit).all()
+        query = db.query(BusinessEvent)
+        if entity_type.upper() == "CUSTOMER":
+            query = query.filter(BusinessEvent.customer_id == entity_id)
+        elif entity_type.upper() == "LEAD":
+            query = query.filter(BusinessEvent.lead_id == entity_id)
+        return query.order_by(BusinessEvent.received_at.desc()).limit(limit).all()
+
