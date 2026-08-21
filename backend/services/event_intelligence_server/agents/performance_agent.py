@@ -33,7 +33,7 @@ class PerformanceAgent:
         if not rm_id:
             return None
 
-        period = event.payload.get("period", "2026-Q1")
+        period = event.payload.get("period", "2026-Q3")
         return await cls.evaluate_rm(db, rm_id=rm_id, period=period, correlation_id=event.correlation_id)
 
     @classmethod
@@ -41,7 +41,7 @@ class PerformanceAgent:
         cls,
         db: Session,
         rm_id: str,
-        period: str = "2026-Q1",
+        period: str = "2026-Q3",
         correlation_id: Optional[str] = None
     ) -> RMPerformanceSnapshot:
         """Evaluates all performance metrics for an RM from actual stored transactions, targets, and actions."""

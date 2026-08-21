@@ -14,6 +14,27 @@ router = APIRouter(prefix="/api/v1/performance", tags=["Performance & Analytics"
 event_client = ServiceClient("event_intelligence_server", settings.EVENT_INTELLIGENCE_SERVER_URL)
 
 
+# NOTE: Static paths MUST be registered before dynamic /{rm_id} to avoid shadowing.
+@router.get(
+    "/achievements/all",
+    summary="List RM Achievements & Milestone Awards",
+    description="Lists all performance achievements (e.g. EARLY_TARGET_ACHIEVEMENT, MAJOR_WIN)."
+)
+@router.get(
+    "/achievements/list",
+    summary="List RM Achievements (Descriptive Alias)",
+    description="Lists all performance achievements (e.g. EARLY_TARGET_ACHIEVEMENT, MAJOR_WIN)."
+)
+def list_achievements(
+    rm_id: Optional[str] = Query(None, description="Optional RM ID filter"),
+    db: Session = Depends(get_db),
+    user: UserContext = Depends(get_current_user)
+):
+
+    target_rm_id = rm_id or (user.user_id if not user.has_any_role([RoleEnum.MANAGER.value, RoleEnum.ADMIN.value]) else None)
+    return PerformanceRepository.list_achievements(db, rm_id=target_rm_id)
+
+
 @router.get(
     "/{rm_id}",
     summary="Evaluate RM Performance Intelligence",
@@ -26,7 +47,7 @@ event_client = ServiceClient("event_intelligence_server", settings.EVENT_INTELLI
 )
 async def get_rm_performance(
     rm_id: str = Path(..., description="Relationship Manager user ID (e.g. 'rm_priya_01')", examples=["rm_priya_01"]),
-    period: str = Query("2026-Q1", description="Fiscal evaluation period (e.g. '2026-Q1', '2026-M03')"),
+    period: str = Query("2026-Q3", description="Fiscal evaluation period (e.g. '2026-Q3', '2026-M08')"),
     request: Request = None,
     db: Session = Depends(get_db),
     user: UserContext = Depends(get_current_user)
@@ -47,23 +68,3 @@ async def get_rm_performance(
         request_id=request_id,
         source_service="core_server"
     )
-
-
-@router.get(
-    "/achievements/all",
-    summary="List RM Achievements & Milestone Awards",
-    description="Lists all performance achievements (e.g. EARLY_TARGET_ACHIEVEMENT, MAJOR_WIN)."
-)
-@router.get(
-    "/achievements/list",
-    summary="List RM Achievements (Descriptive Alias)",
-    description="Lists all performance achievements (e.g. EARLY_TARGET_ACHIEVEMENT, MAJOR_WIN)."
-)
-def list_achievements(
-    rm_id: Optional[str] = Query(None, description="Optional RM ID filter"),
-    db: Session = Depends(get_db),
-    user: UserContext = Depends(get_current_user)
-):
-
-    target_rm_id = rm_id or (user.user_id if not user.has_any_role([RoleEnum.MANAGER.value, RoleEnum.ADMIN.value]) else None)
-    return PerformanceRepository.list_achievements(db, rm_id=target_rm_id)

@@ -36,9 +36,9 @@ class EvaluatePerformanceRequest(BaseModel):
         examples=["rm_priya_01"]
     )
     period: str = Field(
-        default="2026-Q1",
+        default="2026-Q3",
         description="Fiscal evaluation period",
-        examples=["2026-Q1", "2026-M03"]
+        examples=["2026-Q3", "2026-M08"]
     )
     correlation_id: Optional[str] = Field(
         default=None,
@@ -97,11 +97,34 @@ async def evaluate_performance(
         period=req.period,
         correlation_id=req.correlation_id
     )
+    # Explicitly serialize all fields including @property attributes
+    # that FastAPI's default SQLAlchemy serialization would miss.
+    snapshot_dict = {
+        "rm_id": snapshot.rm_id,
+        "period": snapshot.period,
+        "target": float(snapshot.target_value or 0),
+        "achievement": float(snapshot.achieved_value or 0),
+        "achievement_percent": float(snapshot.achievement_percent or 0),
+        "expected_run_rate": float(snapshot.expected_run_rate_percent or 0),
+        "conversion_rate": float(snapshot.conversion_rate or 0),
+        "activity_count": int(snapshot.activity_count or 0),
+        "overdue_actions": int(snapshot.overdue_action_count or 0),
+        "pipeline_value": float(snapshot.pipeline_value or 0),
+        "sla_breaches": int(snapshot.sla_breach_count or 0),
+        "sla_score": float(snapshot.sla_score or 0),
+        "productivity": float(snapshot.productivity or 0),
+        "benchmark_delta": float(snapshot.benchmark_delta or 0),
+        "status": snapshot.status,
+        "primary_drivers": snapshot.primary_drivers or [],
+        "secondary_drivers": snapshot.secondary_drivers or [],
+        "recommended_intervention": snapshot.recommended_intervention or "",
+        "snapshot_at": snapshot.snapshot_at.isoformat() if snapshot.snapshot_at else None,
+    }
     return {
         "success": True,
         "rm_id": req.rm_id,
         "period": req.period,
-        "snapshot": snapshot
+        "snapshot": snapshot_dict
     }
 
 
@@ -119,7 +142,7 @@ async def evaluate_performance(
 )
 async def get_manager_alerts(
     manager_id: Optional[str] = Query(None, description="Optional manager user ID filter"),
-    period: str = Query("2026-Q1", description="Fiscal period to evaluate"),
+    period: str = Query("2026-Q3", description="Fiscal period to evaluate"),
     correlation_id: Optional[str] = Query(None, description="Workflow correlation ID"),
     db: Session = Depends(get_db),
     user: UserContext = Depends(get_current_user)

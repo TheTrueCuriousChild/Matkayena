@@ -21,7 +21,7 @@ event_client = ServiceClient("event_intelligence_server", settings.EVENT_INTELLI
     description="Retrieves prioritized risk alerts, quota shortfalls, escalations, and coaching recommendations for managers."
 )
 async def get_manager_alerts(
-    period: str = Query("2026-Q1", description="Fiscal period to evaluate for managerial alerts"),
+    period: str = Query("2026-Q3", description="Fiscal period to evaluate for managerial alerts"),
     request: Request = None,
     user: UserContext = Depends(require_roles([RoleEnum.MANAGER.value, RoleEnum.TEAM_LEAD.value, RoleEnum.ADMIN.value]))
 ):

@@ -30,7 +30,7 @@ export default function RMPerformance() {
     <>
       <div className="page-header">
         <h1>My Performance</h1>
-        <p>Period: {s?.period || '2026-Q1'}</p>
+        <p>Period: {s?.period || '2026-Q3'}</p>
       </div>
 
       {error && (

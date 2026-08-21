@@ -1,7 +1,7 @@
 import apiClient from './client';
 import type { PerformanceSnapshot, Achievement } from '../types';
 
-export async function getRMPerformance(rmId: string, period = '2026-Q1'): Promise<PerformanceSnapshot> {
+export async function getRMPerformance(rmId: string, period = '2026-Q3'): Promise<PerformanceSnapshot> {
   const res = await apiClient.get<PerformanceSnapshot>(`/api/v1/performance/${rmId}`, { params: { period } });
   return res.data;
 }

@@ -733,43 +733,68 @@ class RMPerformanceSnapshot(Base):
 
     @property
     def productivity(self) -> float:
+        if isinstance(self.contributing_factors, dict) and "productivity" in self.contributing_factors:
+            return float(self.contributing_factors["productivity"])
         return getattr(self, "_productivity", 0.0)
 
     @productivity.setter
     def productivity(self, val: float):
         self._productivity = val
+        if not isinstance(self.contributing_factors, dict):
+            self.contributing_factors = {}
+        self.contributing_factors["productivity"] = val
 
     @property
     def sla_score(self) -> float:
+        if isinstance(self.contributing_factors, dict) and "sla_score" in self.contributing_factors:
+            return float(self.contributing_factors["sla_score"])
         return getattr(self, "_sla_score", 0.0)
 
     @sla_score.setter
     def sla_score(self, val: float):
         self._sla_score = val
+        if not isinstance(self.contributing_factors, dict):
+            self.contributing_factors = {}
+        self.contributing_factors["sla_score"] = val
 
     @property
     def benchmark_delta(self) -> float:
+        if isinstance(self.contributing_factors, dict) and "benchmark_delta" in self.contributing_factors:
+            return float(self.contributing_factors["benchmark_delta"])
         return getattr(self, "_benchmark_delta", 0.0)
 
     @benchmark_delta.setter
     def benchmark_delta(self, val: float):
         self._benchmark_delta = val
+        if not isinstance(self.contributing_factors, dict):
+            self.contributing_factors = {}
+        self.contributing_factors["benchmark_delta"] = val
 
     @property
     def secondary_drivers(self) -> list:
+        if isinstance(self.contributing_factors, dict) and "secondary_drivers" in self.contributing_factors:
+            return self.contributing_factors["secondary_drivers"]
         return getattr(self, "_secondary_drivers", [])
 
     @secondary_drivers.setter
     def secondary_drivers(self, val: list):
         self._secondary_drivers = val
+        if not isinstance(self.contributing_factors, dict):
+            self.contributing_factors = {}
+        self.contributing_factors["secondary_drivers"] = val
 
     @property
     def recommended_intervention(self) -> str:
+        if isinstance(self.contributing_factors, dict) and "recommended_intervention" in self.contributing_factors:
+            return self.contributing_factors["recommended_intervention"]
         return getattr(self, "_recommended_intervention", "")
 
     @recommended_intervention.setter
     def recommended_intervention(self, val: str):
         self._recommended_intervention = val
+        if not isinstance(self.contributing_factors, dict):
+            self.contributing_factors = {}
+        self.contributing_factors["recommended_intervention"] = val
 
     @property
     def snapshot_at(self) -> datetime:

@@ -60,7 +60,7 @@ class ManagerAgent:
         cls,
         db: Session,
         manager_id: Optional[str] = None,
-        period: str = "2026-Q1",
+        period: str = "2026-Q3",
         correlation_id: Optional[str] = None
     ) -> List[ManagerAlert]:
         """Scans all performance snapshots and high-priority items to synthesize manager alerts."""
